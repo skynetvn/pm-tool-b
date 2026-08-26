@@ -495,6 +495,17 @@ async function migratePostgresSchema(pool: Pool) {
            AND e2.no = 'EPIC'
            AND e2.id != e.id
        )`,
+    `CREATE TABLE IF NOT EXISTS portfolio_dynamic_views (
+       id SERIAL PRIMARY KEY,
+       company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+       name TEXT NOT NULL,
+       group_by TEXT NOT NULL DEFAULT 'program',
+       metrics_json TEXT NOT NULL DEFAULT '[]',
+       period_start TEXT DEFAULT '',
+       period_end TEXT DEFAULT '',
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+     )`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
