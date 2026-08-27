@@ -8,7 +8,7 @@ import {
   MessageSquare, AlertTriangle, FileText, TrendingDown,
   PieChart, Building2, ClipboardList, FileBarChart2,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
-  FolderOpen, Plus, Map, DollarSign, UserCog, Flag, Bug, BarChart2,
+  FolderOpen, Plus, Map, DollarSign, UserCog, Flag, Bug, BarChart2, SlidersHorizontal,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -37,6 +37,7 @@ const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
   { href: '/portfolio/roadmap', icon: Map, label: 'Portfolio Roadmap' },
   { href: '/portfolio/report', icon: FileBarChart2, label: 'Portfolio Report' },
+  { href: '/portfolio/dynamic-report', icon: SlidersHorizontal, label: 'Dynamic Report' },
   { href: '/portfolio/budget', icon: DollarSign, label: 'Portfolio Budget' },
   { href: '/resources', icon: UserCog, label: 'Resource Management' },
   { href: '/operations', icon: ShieldCheck, label: 'Operations' },

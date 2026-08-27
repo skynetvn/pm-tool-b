@@ -1,5 +1,6 @@
 import PptxGenJS from 'pptxgenjs';
 import { getDb } from '@/lib/db';
+import type { ReportRow, GroupBy } from '@/lib/portfolio-dynamic-report';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const PRIMARY   = '1677FF';   // blue
@@ -449,6 +450,105 @@ Phase 4 — Closing: UAT sign-off, Closure Report, Lessons Learned`;
     });
 
     addSlideFooter(s, 10, TOTAL);
+  }
+
+  const buf = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
+  return Buffer.from(buf);
+}
+
+// ─── Dynamic Portfolio Report PPT ──────────────────────────────────────────────
+const RAG_COLOR: Record<string, string> = { red: 'DC2626', amber: 'B45309', green: '15803D' };
+
+const DIMENSION_LABEL_VI: Record<GroupBy, string> = {
+  program: 'Chương trình', project: 'Dự án', phase: 'Giai đoạn', rag: 'Sức khỏe (RAG)', pm: 'PM', month: 'Tháng', activity: 'Activity',
+};
+
+export async function generateDynamicReportPPT(
+  groupBy: GroupBy,
+  rows: ReportRow[],
+  generatedAt: string,
+): Promise<Buffer> {
+  const TOTAL = 2;
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.defineLayout({ name: 'STANDARD', width: W, height: H });
+  pptx.layout = 'STANDARD';
+
+  const dimLabel = DIMENSION_LABEL_VI[groupBy];
+  const isActivity = groupBy === 'activity';
+  const isMonth = groupBy === 'month';
+
+  // ── Slide 1: Cover ──────────────────────────────────────────────────────────
+  {
+    const s = pptx.addSlide();
+    s.addShape('rect', { x: 0, y: 0, w: W, h: 3.2, fill: { color: PRIMARY } });
+    s.addShape('rect', { x: 0, y: 3.2, w: W, h: H - 3.2, fill: { color: WHITE } });
+    s.addShape('rect', { x: 0, y: 3.1, w: W, h: 0.12, fill: { color: ACCENT } });
+
+    s.addText('DYNAMIC PORTFOLIO REPORT', {
+      x: 0.5, y: 0.9, w: W - 1, h: 0.6, fontSize: 15, bold: true, color: 'DBEAFE', align: 'center',
+    });
+    s.addText(`Nhóm theo: ${dimLabel}`, {
+      x: 0.5, y: 1.55, w: W - 1, h: 0.9, fontSize: 26, bold: true, color: WHITE, align: 'center', valign: 'middle',
+    });
+    s.addText(`${rows.length} dòng · Generated ${new Date(generatedAt).toLocaleString('vi-VN')}`, {
+      x: 0.5, y: 3.6, w: W - 1, h: 0.5, fontSize: 11, color: MID, align: 'center',
+    });
+    addSlideFooter(s, 1, TOTAL);
+  }
+
+  // ── Slide 2+: Data table (auto-paginates across slides) ─────────────────────
+  {
+    const s = pptx.addSlide();
+    s.background = { color: WHITE };
+    slideTitle(s, `Chi tiết theo ${dimLabel}`);
+
+    const headerRow: TableRow = isActivity
+      ? [headerCell(dimLabel), headerCell('Trạng thái'), headerCell('% Hoàn thành')]
+      : isMonth
+        ? [headerCell(dimLabel), headerCell('Ngân sách thực tế (₫)')]
+        : [headerCell(dimLabel), headerCell('SL'), headerCell('% HT'), headerCell('RAG'), headerCell('NS thực tế (₫)'), headerCell('NS kế hoạch (₫)'), headerCell('Rủi ro'), headerCell('Bugs')];
+
+    const bodyRows: TableRow[] = rows.map(r => {
+      const m = r.metrics as Record<string, Record<string, unknown>>;
+      if (isActivity) {
+        return [dataCell(r.label), dataCell(String(r.detail?.status ?? '')), dataCell(String(m.schedule?.completion_pct ?? ''))];
+      }
+      if (isMonth) {
+        return [dataCell(r.label), dataCell(Number(m.budget?.actual ?? 0).toLocaleString('vi-VN'))];
+      }
+      const schedule = m.schedule as { completion_pct?: number; rag?: string; rag_counts?: { red: number; amber: number; green: number } } | undefined;
+      const ragText = schedule?.rag
+        ? schedule.rag.toUpperCase()
+        : schedule?.rag_counts
+          ? `${schedule.rag_counts.red}R/${schedule.rag_counts.amber}A/${schedule.rag_counts.green}G`
+          : '—';
+      const ragColor = schedule?.rag ? RAG_COLOR[schedule.rag] : DARK;
+      const budget = m.budget as { actual?: number; planned?: number } | undefined;
+      const risk = m.risk as { open_risks?: number } | undefined;
+      const bugs = m.bugs as { open?: number } | undefined;
+      return [
+        dataCell(r.label),
+        dataCell(String(r.count)),
+        dataCell(String(schedule?.completion_pct ?? '')),
+        dataCell(ragText, { bold: true, color: ragColor, align: 'center' }),
+        dataCell(Number(budget?.actual ?? 0).toLocaleString('vi-VN')),
+        dataCell(Number(budget?.planned ?? 0).toLocaleString('vi-VN')),
+        dataCell(String(risk?.open_risks ?? 0), { align: 'center' }),
+        dataCell(String(bugs?.open ?? 0), { align: 'center' }),
+      ];
+    });
+
+    s.addTable([headerRow, ...bodyRows], {
+      x: 0.4, y: 0.75, w: W - 0.8, h: H - 1.3,
+      border: { type: 'solid', color: 'E2E8F0', pt: 0.5 },
+      rowH: 0.35,
+      autoPage: true,
+      autoPageRepeatHeader: true,
+      autoPageSlideStartY: 0.75,
+    });
+
+    addSlideFooter(s, 2, TOTAL);
   }
 
   const buf = await pptx.write({ outputType: 'arraybuffer' }) as ArrayBuffer;
