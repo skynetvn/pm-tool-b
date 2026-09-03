@@ -4,8 +4,8 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 async function loadGoal(db: Awaited<ReturnType<typeof getDb>>, id: string) {
   const goal = await db.get(
-    `SELECT g.*, u.display_name as owner_name, u.username as owner_username
-     FROM goals g LEFT JOIN users u ON g.owner_id = u.id WHERE g.id = ?`, id
+    `SELECT g.*, u.display_name as owner_name, u.username as owner_username, sq.name as squad_name
+     FROM goals g LEFT JOIN users u ON g.owner_id = u.id LEFT JOIN squads sq ON g.squad_id = sq.id WHERE g.id = ?`, id
   );
   if (!goal) return null;
   const key_results = await db.all('SELECT * FROM key_results WHERE goal_id = ? ORDER BY order_idx, id', id);
@@ -36,8 +36,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const db = await getDb();
 
   await db.run(
-    `UPDATE goals SET title = ?, description = ?, owner_id = ?, period_label = ?, start_date = ?, end_date = ?, status = ?, parent_goal_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    body.title, body.description ?? '', body.owner_id ?? null, body.period_label ?? '',
+    `UPDATE goals SET title = ?, description = ?, owner_id = ?, squad_id = ?, period_label = ?, start_date = ?, end_date = ?, status = ?, parent_goal_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    body.title, body.description ?? '', body.owner_id ?? null, body.squad_id ?? null, body.period_label ?? '',
     body.start_date ?? null, body.end_date ?? null, body.status ?? 'not_started', body.parent_goal_id ?? null, id
   );
 

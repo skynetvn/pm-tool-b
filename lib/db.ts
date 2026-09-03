@@ -411,9 +411,18 @@ async function initPostgresSchema(db: DbClient) {
       mappings_json TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS squads (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      lead_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS goals (
       id SERIAL PRIMARY KEY,
       company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      squad_id INTEGER REFERENCES squads(id) ON DELETE SET NULL,
       parent_goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
       title TEXT NOT NULL,
       description TEXT DEFAULT '',
@@ -558,6 +567,8 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS goal_checkins (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, note TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'on_track', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS initiatives (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT DEFAULT '', owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL, status TEXT NOT NULL DEFAULT 'proposed', priority TEXT NOT NULL DEFAULT 'medium', start_date TEXT, end_date TEXT, progress_pct INTEGER NOT NULL DEFAULT 0, created_by INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS initiative_checkins (id SERIAL PRIMARY KEY, initiative_id INTEGER NOT NULL REFERENCES initiatives(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, note TEXT NOT NULL DEFAULT '', progress_pct INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS squads (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT DEFAULT '', lead_id INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `ALTER TABLE goals ADD COLUMN IF NOT EXISTS squad_id INTEGER REFERENCES squads(id) ON DELETE SET NULL`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
@@ -656,8 +667,12 @@ export async function getDb(): Promise<DbClient> {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+export type Squad = {
+  id: number; company_id: number | null; name: string; description: string;
+  lead_id: number | null; created_at: string;
+};
 export type Goal = {
-  id: number; company_id: number | null; parent_goal_id: number | null;
+  id: number; company_id: number | null; squad_id: number | null; parent_goal_id: number | null;
   title: string; description: string; owner_id: number | null;
   period_label: string; start_date: string | null; end_date: string | null;
   status: 'not_started' | 'on_track' | 'at_risk' | 'off_track' | 'completed';

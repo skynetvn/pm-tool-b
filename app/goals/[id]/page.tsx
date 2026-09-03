@@ -10,17 +10,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Target, Plus, Trash2, Rocket, MessageSquare, Pencil } from 'lucide-react';
+import { ArrowLeft, Target, Plus, Trash2, Rocket, MessageSquare, Pencil, Layers } from 'lucide-react';
 
 type KeyResult = { id: number; title: string; unit: string; start_value: number; target_value: number; current_value: number };
 type Checkin = { id: number; note: string; status: string; user_name: string | null; created_at: string };
 type InitiativeLite = { id: number; title: string; status: string; progress_pct: number; owner_name: string | null };
 type GoalDetail = {
   id: number; title: string; description: string; period_label: string; status: string;
-  owner_id: number | null; owner_name: string | null; start_date: string | null; end_date: string | null;
+  owner_id: number | null; owner_name: string | null; squad_id: number | null; squad_name: string | null;
+  start_date: string | null; end_date: string | null;
   key_results: KeyResult[]; initiatives: InitiativeLite[]; checkins: Checkin[];
 };
 type UserOpt = { id: number; username: string; display_name: string };
+type Squad = { id: number; name: string };
 
 const GOAL_STATUS: Record<string, { label: string; color: string }> = {
   not_started: { label: 'Chưa bắt đầu', color: 'bg-slate-100 text-slate-600' },
@@ -57,10 +59,11 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
   const router = useRouter();
   const [goal, setGoal] = useState<GoalDetail | null>(null);
   const [users, setUsers] = useState<UserOpt[]>([]);
+  const [squads, setSquads] = useState<Squad[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', period_label: '', owner_id: '', start_date: '', end_date: '', status: 'not_started' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', period_label: '', owner_id: '', squad_id: '', start_date: '', end_date: '', status: 'not_started' });
 
   const [krOpen, setKrOpen] = useState(false);
   const [krForm, setKrForm] = useState({ title: '', unit: '', start_value: 0, target_value: 100 });
@@ -75,13 +78,15 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     load();
     fetch('/api/users').then(r => r.ok ? r.json() : []).then(setUsers);
+    fetch('/api/squads').then(r => r.ok ? r.json() : []).then(setSquads);
   }, [load]);
 
   const openEdit = () => {
     if (!goal) return;
     setEditForm({
       title: goal.title, description: goal.description ?? '', period_label: goal.period_label ?? '',
-      owner_id: goal.owner_id ? String(goal.owner_id) : '', start_date: goal.start_date ?? '', end_date: goal.end_date ?? '',
+      owner_id: goal.owner_id ? String(goal.owner_id) : '', squad_id: goal.squad_id ? String(goal.squad_id) : '',
+      start_date: goal.start_date ?? '', end_date: goal.end_date ?? '',
       status: goal.status,
     });
     setEditOpen(true);
@@ -90,7 +95,7 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
   const saveEdit = async () => {
     const res = await fetch(`/api/goals/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...editForm, owner_id: editForm.owner_id ? Number(editForm.owner_id) : null }),
+      body: JSON.stringify({ ...editForm, owner_id: editForm.owner_id ? Number(editForm.owner_id) : null, squad_id: editForm.squad_id ? Number(editForm.squad_id) : null }),
     });
     if (!res.ok) { toast.error('Lỗi khi cập nhật mục tiêu'); return; }
     toast.success('Đã cập nhật mục tiêu');
@@ -185,7 +190,12 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
           </div>
           {goal.description && <p className="text-sm text-slate-600 mb-3">{goal.description}</p>}
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mb-3">
-            {goal.period_label && <span>Giai đoạn: {goal.period_label}</span>}
+            {goal.squad_name && (
+              <Link href={`/squads/${goal.squad_id}`} className="flex items-center gap-1 text-emerald-600 hover:underline font-medium">
+                <Layers className="h-3 w-3" /> {goal.squad_name}
+              </Link>
+            )}
+            {goal.period_label && <span>· Giai đoạn: {goal.period_label}</span>}
             {goal.owner_name && <span>· Chủ trì: {goal.owner_name}</span>}
             {goal.start_date && <span>· {goal.start_date} → {goal.end_date || '—'}</span>}
           </div>
@@ -330,15 +340,27 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
                 </select>
               </div>
             </div>
-            <div>
-              <Label>Người chủ trì</Label>
-              <select
-                className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                value={editForm.owner_id} onChange={e => setEditForm(f => ({ ...f, owner_id: e.target.value }))}
-              >
-                <option value="">— Chưa gán —</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.display_name || u.username}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Người chủ trì</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={editForm.owner_id} onChange={e => setEditForm(f => ({ ...f, owner_id: e.target.value }))}
+                >
+                  <option value="">— Chưa gán —</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.display_name || u.username}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label>Nhóm (Squad)</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={editForm.squad_id} onChange={e => setEditForm(f => ({ ...f, squad_id: e.target.value }))}
+                >
+                  <option value="">— Không thuộc nhóm —</option>
+                  {squads.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

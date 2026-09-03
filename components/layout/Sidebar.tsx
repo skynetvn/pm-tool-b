@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, Target, Rocket,
+  LayoutDashboard, Target, Rocket, Layers, BarChart3,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -32,6 +32,8 @@ function KoinoboriIcon({ className }: { className?: string }) {
 
 const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Tổng quan' },
+  { href: '/portfolio', icon: BarChart3, label: 'Tổng hợp toàn tổ chức' },
+  { href: '/squads', icon: Layers, label: 'Nhóm (Squad)' },
   { href: '/goals', icon: Target, label: 'Mục tiêu' },
   { href: '/initiatives', icon: Rocket, label: 'Sáng kiến' },
 ];

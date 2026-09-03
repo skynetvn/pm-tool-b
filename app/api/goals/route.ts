@@ -4,11 +4,13 @@ import { getSessionFromRequest } from '@/lib/auth';
 
 const GOAL_SELECT = `
   SELECT g.*, u.display_name as owner_name, u.username as owner_username,
+    sq.name as squad_name,
     COALESCE(kr.avg_progress, 0) as kr_progress,
     COALESCE(kr.kr_count, 0) as kr_count,
     COALESCE(ini.initiative_count, 0) as initiative_count
   FROM goals g
   LEFT JOIN users u ON g.owner_id = u.id
+  LEFT JOIN squads sq ON g.squad_id = sq.id
   LEFT JOIN (
     SELECT goal_id,
       AVG(CASE WHEN target_value = start_value THEN 100
@@ -43,9 +45,9 @@ export async function POST(req: NextRequest) {
   const companyId = user.is_admin ? (body.company_id ?? user.company_id ?? null) : user.company_id;
 
   const result = await db.run(
-    `INSERT INTO goals (company_id, parent_goal_id, title, description, owner_id, period_label, start_date, end_date, status, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    companyId, body.parent_goal_id ?? null, body.title.trim(), body.description ?? '',
+    `INSERT INTO goals (company_id, squad_id, parent_goal_id, title, description, owner_id, period_label, start_date, end_date, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    companyId, body.squad_id ?? null, body.parent_goal_id ?? null, body.title.trim(), body.description ?? '',
     body.owner_id ?? null, body.period_label ?? '', body.start_date ?? null, body.end_date ?? null,
     body.status ?? 'not_started', user.id
   );

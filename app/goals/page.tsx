@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,15 +10,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Target, Plus, Search, Trash2 } from 'lucide-react';
+import { Target, Plus, Search, Trash2, Layers } from 'lucide-react';
 
 type Goal = {
   id: number; title: string; description: string; period_label: string; status: string;
-  owner_id: number | null; owner_name: string | null;
+  owner_id: number | null; owner_name: string | null; squad_id: number | null; squad_name: string | null;
   start_date: string | null; end_date: string | null;
   kr_progress: number; kr_count: number; initiative_count: number;
 };
 type UserOpt = { id: number; username: string; display_name: string };
+type Squad = { id: number; name: string };
 
 const GOAL_STATUS: Record<string, { label: string; color: string }> = {
   not_started: { label: 'Chưa bắt đầu', color: 'bg-slate-100 text-slate-600' },
@@ -28,7 +30,7 @@ const GOAL_STATUS: Record<string, { label: string; color: string }> = {
 };
 
 const EMPTY_FORM = {
-  title: '', description: '', period_label: '', owner_id: '', start_date: '', end_date: '',
+  title: '', description: '', period_label: '', owner_id: '', squad_id: '', start_date: '', end_date: '',
   key_results: [{ title: '', unit: '', start_value: 0, target_value: 100 }] as { title: string; unit: string; start_value: number; target_value: number }[],
 };
 
@@ -41,15 +43,20 @@ function ProgressBar({ pct }: { pct: number }) {
   );
 }
 
-export default function GoalsPage() {
+function GoalsPageInner() {
+  const searchParams = useSearchParams();
+  const presetSquadId = searchParams.get('squad_id');
+
   const [goals, setGoals] = useState<Goal[]>([]);
   const [users, setUsers] = useState<UserOpt[]>([]);
+  const [squads, setSquads] = useState<Squad[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [squadFilter, setSquadFilter] = useState(presetSquadId ?? 'all');
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState({ ...EMPTY_FORM, squad_id: presetSquadId ?? '' });
   const [saving, setSaving] = useState(false);
 
   const loadGoals = useCallback(() =>
@@ -58,17 +65,23 @@ export default function GoalsPage() {
   useEffect(() => {
     loadGoals();
     fetch('/api/users').then(r => r.ok ? r.json() : []).then(setUsers);
+    fetch('/api/squads').then(r => r.ok ? r.json() : []).then(setSquads);
   }, [loadGoals]);
+
+  useEffect(() => {
+    if (presetSquadId) { setOpen(true); setForm(f => ({ ...f, squad_id: presetSquadId })); setSquadFilter(presetSquadId); }
+  }, [presetSquadId]);
 
   const filtered = useMemo(() => {
     return goals.filter(g => {
       if (statusFilter !== 'all' && g.status !== statusFilter) return false;
+      if (squadFilter !== 'all' && String(g.squad_id) !== squadFilter) return false;
       if (search && !g.title.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [goals, statusFilter, search]);
+  }, [goals, statusFilter, squadFilter, search]);
 
-  const openCreate = () => { setForm(EMPTY_FORM); setOpen(true); };
+  const openCreate = () => { setForm({ ...EMPTY_FORM, squad_id: squadFilter !== 'all' ? squadFilter : '' }); setOpen(true); };
 
   const addKr = () => setForm(f => ({ ...f, key_results: [...f.key_results, { title: '', unit: '', start_value: 0, target_value: 100 }] }));
   const removeKr = (i: number) => setForm(f => ({ ...f, key_results: f.key_results.filter((_, idx) => idx !== i) }));
@@ -84,6 +97,7 @@ export default function GoalsPage() {
       body: JSON.stringify({
         ...form,
         owner_id: form.owner_id ? Number(form.owner_id) : null,
+        squad_id: form.squad_id ? Number(form.squad_id) : null,
         key_results: form.key_results.filter(kr => kr.title.trim()),
       }),
     });
@@ -125,6 +139,14 @@ export default function GoalsPage() {
             <Input className="pl-8 h-9" placeholder="Tìm mục tiêu…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <select
+            value={squadFilter}
+            onChange={e => setSquadFilter(e.target.value)}
+            className="h-9 text-sm border rounded-md px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+          >
+            <option value="all">Tất cả nhóm</option>
+            {squads.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
             className="h-9 text-sm border rounded-md px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
@@ -155,6 +177,7 @@ export default function GoalsPage() {
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <h3 className="font-semibold text-slate-800 hover:text-blue-600 transition-colors">{g.title}</h3>
                       <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+                      {g.squad_name && <Badge className="bg-emerald-50 text-emerald-700 border-0 gap-1"><Layers className="h-3 w-3" />{g.squad_name}</Badge>}
                       {g.period_label && <span className="text-xs text-slate-400">{g.period_label}</span>}
                     </div>
                     {g.description && <p className="text-sm text-slate-500 mb-2 line-clamp-1">{g.description}</p>}
@@ -209,16 +232,27 @@ export default function GoalsPage() {
                   placeholder="VD: Q1 2026" />
               </div>
               <div>
-                <Label>Người chủ trì</Label>
+                <Label>Nhóm (Squad)</Label>
                 <select
                   className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  value={form.owner_id}
-                  onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
+                  value={form.squad_id}
+                  onChange={e => setForm(f => ({ ...f, squad_id: e.target.value }))}
                 >
-                  <option value="">— Chưa gán —</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.display_name || u.username}</option>)}
+                  <option value="">— Không thuộc nhóm —</option>
+                  {squads.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
+            </div>
+            <div>
+              <Label>Người chủ trì</Label>
+              <select
+                className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                value={form.owner_id}
+                onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}
+              >
+                <option value="">— Chưa gán —</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.display_name || u.username}</option>)}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -278,5 +312,13 @@ export default function GoalsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function GoalsPage() {
+  return (
+    <Suspense fallback={null}>
+      <GoalsPageInner />
+    </Suspense>
   );
 }
