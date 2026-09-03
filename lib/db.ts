@@ -410,6 +410,64 @@ async function initPostgresSchema(db: DbClient) {
       name TEXT NOT NULL,
       mappings_json TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS goals (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      parent_goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      period_label TEXT NOT NULL DEFAULT '',
+      start_date TEXT,
+      end_date TEXT,
+      status TEXT NOT NULL DEFAULT 'not_started',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS key_results (
+      id SERIAL PRIMARY KEY,
+      goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      unit TEXT DEFAULT '',
+      start_value NUMERIC(15,2) NOT NULL DEFAULT 0,
+      target_value NUMERIC(15,2) NOT NULL DEFAULT 100,
+      current_value NUMERIC(15,2) NOT NULL DEFAULT 0,
+      order_idx INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS goal_checkins (
+      id SERIAL PRIMARY KEY,
+      goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      note TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'on_track',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS initiatives (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+      goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      priority TEXT NOT NULL DEFAULT 'medium',
+      start_date TEXT,
+      end_date TEXT,
+      progress_pct INTEGER NOT NULL DEFAULT 0,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS initiative_checkins (
+      id SERIAL PRIMARY KEY,
+      initiative_id INTEGER NOT NULL REFERENCES initiatives(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      note TEXT NOT NULL DEFAULT '',
+      progress_pct INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -495,6 +553,11 @@ async function migratePostgresSchema(pool: Pool) {
            AND e2.no = 'EPIC'
            AND e2.id != e.id
        )`,
+    `CREATE TABLE IF NOT EXISTS goals (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, parent_goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT DEFAULT '', owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL, period_label TEXT NOT NULL DEFAULT '', start_date TEXT, end_date TEXT, status TEXT NOT NULL DEFAULT 'not_started', created_by INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS key_results (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE, title TEXT NOT NULL, unit TEXT DEFAULT '', start_value NUMERIC(15,2) NOT NULL DEFAULT 0, target_value NUMERIC(15,2) NOT NULL DEFAULT 100, current_value NUMERIC(15,2) NOT NULL DEFAULT 0, order_idx INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS goal_checkins (id SERIAL PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, note TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'on_track', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS initiatives (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT DEFAULT '', owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL, status TEXT NOT NULL DEFAULT 'proposed', priority TEXT NOT NULL DEFAULT 'medium', start_date TEXT, end_date TEXT, progress_pct INTEGER NOT NULL DEFAULT 0, created_by INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
+    `CREATE TABLE IF NOT EXISTS initiative_checkins (id SERIAL PRIMARY KEY, initiative_id INTEGER NOT NULL REFERENCES initiatives(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, note TEXT NOT NULL DEFAULT '', progress_pct INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
@@ -593,6 +656,34 @@ export async function getDb(): Promise<DbClient> {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+export type Goal = {
+  id: number; company_id: number | null; parent_goal_id: number | null;
+  title: string; description: string; owner_id: number | null;
+  period_label: string; start_date: string | null; end_date: string | null;
+  status: 'not_started' | 'on_track' | 'at_risk' | 'off_track' | 'completed';
+  created_by: number | null; created_at: string; updated_at: string;
+};
+export type KeyResult = {
+  id: number; goal_id: number; title: string; unit: string;
+  start_value: number; target_value: number; current_value: number;
+  order_idx: number; created_at: string;
+};
+export type GoalCheckin = {
+  id: number; goal_id: number; user_id: number | null; note: string;
+  status: string; created_at: string;
+};
+export type Initiative = {
+  id: number; company_id: number | null; goal_id: number | null;
+  title: string; description: string; owner_id: number | null;
+  status: 'proposed' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high';
+  start_date: string | null; end_date: string | null; progress_pct: number;
+  created_by: number | null; created_at: string; updated_at: string;
+};
+export type InitiativeCheckin = {
+  id: number; initiative_id: number; user_id: number | null; note: string;
+  progress_pct: number | null; created_at: string;
+};
 export type Program = {
   id: number; name: string; industry: string; contact_name: string;
   contact_email: string; contact_phone: string; website: string;
