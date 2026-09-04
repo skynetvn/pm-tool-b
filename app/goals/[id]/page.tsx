@@ -18,11 +18,14 @@ type InitiativeLite = { id: number; title: string; status: string; progress_pct:
 type GoalDetail = {
   id: number; title: string; description: string; period_label: string; status: string;
   owner_id: number | null; owner_name: string | null; squad_id: number | null; squad_name: string | null;
+  parent_goal_id: number | null; parent_goal_title: string | null; level: 1 | 2 | 3;
   start_date: string | null; end_date: string | null;
   key_results: KeyResult[]; initiatives: InitiativeLite[]; checkins: Checkin[];
 };
 type UserOpt = { id: number; username: string; display_name: string };
 type Squad = { id: number; name: string };
+type GoalOpt = { id: number; title: string; level: 1 | 2 | 3 };
+const LEVEL_LABEL: Record<number, string> = { 1: 'Cấp 1', 2: 'Cấp 2', 3: 'Cấp 3' };
 
 const GOAL_STATUS: Record<string, { label: string; color: string }> = {
   not_started: { label: 'Chưa bắt đầu', color: 'bg-slate-100 text-slate-600' },
@@ -60,10 +63,14 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
   const [goal, setGoal] = useState<GoalDetail | null>(null);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [squads, setSquads] = useState<Squad[]>([]);
+  const [allGoals, setAllGoals] = useState<GoalOpt[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', description: '', period_label: '', owner_id: '', squad_id: '', start_date: '', end_date: '', status: 'not_started' });
+  const [editForm, setEditForm] = useState({
+    title: '', description: '', period_label: '', owner_id: '', squad_id: '', start_date: '', end_date: '', status: 'not_started',
+    level: '1', parent_goal_id: '',
+  });
 
   const [krOpen, setKrOpen] = useState(false);
   const [krForm, setKrForm] = useState({ title: '', unit: '', start_value: 0, target_value: 100 });
@@ -79,6 +86,7 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
     load();
     fetch('/api/users').then(r => r.ok ? r.json() : []).then(setUsers);
     fetch('/api/squads').then(r => r.ok ? r.json() : []).then(setSquads);
+    fetch('/api/goals').then(r => r.ok ? r.json() : []).then(setAllGoals);
   }, [load]);
 
   const openEdit = () => {
@@ -87,7 +95,7 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
       title: goal.title, description: goal.description ?? '', period_label: goal.period_label ?? '',
       owner_id: goal.owner_id ? String(goal.owner_id) : '', squad_id: goal.squad_id ? String(goal.squad_id) : '',
       start_date: goal.start_date ?? '', end_date: goal.end_date ?? '',
-      status: goal.status,
+      status: goal.status, level: String(goal.level ?? 1), parent_goal_id: goal.parent_goal_id ? String(goal.parent_goal_id) : '',
     });
     setEditOpen(true);
   };
@@ -95,7 +103,13 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
   const saveEdit = async () => {
     const res = await fetch(`/api/goals/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...editForm, owner_id: editForm.owner_id ? Number(editForm.owner_id) : null, squad_id: editForm.squad_id ? Number(editForm.squad_id) : null }),
+      body: JSON.stringify({
+        ...editForm,
+        owner_id: editForm.owner_id ? Number(editForm.owner_id) : null,
+        squad_id: editForm.squad_id ? Number(editForm.squad_id) : null,
+        level: Number(editForm.level),
+        parent_goal_id: editForm.parent_goal_id ? Number(editForm.parent_goal_id) : null,
+      }),
     });
     if (!res.ok) { toast.error('Lỗi khi cập nhật mục tiêu'); return; }
     toast.success('Đã cập nhật mục tiêu');
@@ -182,6 +196,7 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-bold text-slate-800">{goal.title}</h1>
               <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+              <Badge className="bg-indigo-50 text-indigo-700 border-0">{LEVEL_LABEL[goal.level] ?? 'Cấp 1'}</Badge>
             </div>
             <div className="flex gap-2 shrink-0">
               <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Sửa</Button>
@@ -193,6 +208,11 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
             {goal.squad_name && (
               <Link href={`/squads/${goal.squad_id}`} className="flex items-center gap-1 text-emerald-600 hover:underline font-medium">
                 <Layers className="h-3 w-3" /> {goal.squad_name}
+              </Link>
+            )}
+            {goal.parent_goal_title && (
+              <Link href={`/goals/${goal.parent_goal_id}`} className="flex items-center gap-1 text-blue-600 hover:underline">
+                <Target className="h-3 w-3" /> Thuộc: {goal.parent_goal_title}
               </Link>
             )}
             {goal.period_label && <span>· Giai đoạn: {goal.period_label}</span>}
@@ -359,6 +379,30 @@ export default function GoalDetailPage({ params }: { params: Promise<{ id: strin
                 >
                   <option value="">— Không thuộc nhóm —</option>
                   {squads.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Cấp mục tiêu</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={editForm.level} onChange={e => setEditForm(f => ({ ...f, level: e.target.value, parent_goal_id: '' }))}
+                >
+                  <option value="1">Cấp 1</option>
+                  <option value="2">Cấp 2</option>
+                  <option value="3">Cấp 3</option>
+                </select>
+              </div>
+              <div>
+                <Label>Mục tiêu cha</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={editForm.parent_goal_id} onChange={e => setEditForm(f => ({ ...f, parent_goal_id: e.target.value }))}
+                  disabled={editForm.level === '1'}
+                >
+                  <option value="">— Không có —</option>
+                  {allGoals.filter(g => g.level === Number(editForm.level) - 1 && g.id !== goal.id).map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
                 </select>
               </div>
             </div>

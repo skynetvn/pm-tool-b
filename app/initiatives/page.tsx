@@ -15,9 +15,13 @@ import { Rocket, Plus, Search, Trash2, Target } from 'lucide-react';
 type Initiative = {
   id: number; title: string; description: string; status: string; priority: string;
   owner_id: number | null; owner_name: string | null; goal_id: number | null; goal_title: string | null;
+  parent_initiative_id: number | null; parent_initiative_title: string | null; level: 1 | 2 | 3;
+  output_product: string | null;
   progress_pct: number; start_date: string | null; end_date: string | null;
 };
 type Goal = { id: number; title: string };
+
+const LEVEL_LABEL: Record<number, string> = { 1: 'Cấp 1', 2: 'Cấp 2', 3: 'Cấp 3' };
 type UserOpt = { id: number; username: string; display_name: string };
 
 const INI_STATUS: Record<string, { label: string; color: string }> = {
@@ -34,7 +38,10 @@ const PRIORITY: Record<string, { label: string; color: string }> = {
 };
 const STATUS_ORDER = ['proposed', 'in_progress', 'on_hold', 'completed', 'cancelled'];
 
-const EMPTY_FORM = { title: '', description: '', goal_id: '', owner_id: '', priority: 'medium', status: 'proposed', start_date: '', end_date: '' };
+const EMPTY_FORM = {
+  title: '', description: '', goal_id: '', owner_id: '', priority: 'medium', status: 'proposed', start_date: '', end_date: '',
+  level: '1', parent_initiative_id: '', output_product: '',
+};
 
 function ProgressBar({ pct }: { pct: number }) {
   const clamped = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
@@ -95,7 +102,14 @@ function InitiativesPageInner() {
     setSaving(true);
     const res = await fetch('/api/initiatives', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, goal_id: form.goal_id ? Number(form.goal_id) : null, owner_id: form.owner_id ? Number(form.owner_id) : null }),
+      body: JSON.stringify({
+        ...form,
+        goal_id: form.goal_id ? Number(form.goal_id) : null,
+        owner_id: form.owner_id ? Number(form.owner_id) : null,
+        level: Number(form.level),
+        parent_initiative_id: form.parent_initiative_id ? Number(form.parent_initiative_id) : null,
+        output_product: form.level === '3' ? (form.output_product.trim() || null) : null,
+      }),
     });
     setSaving(false);
     if (!res.ok) { toast.error((await res.json()).error ?? 'Lỗi khi tạo sáng kiến'); return; }
@@ -181,9 +195,15 @@ function InitiativesPageInner() {
                           {i.goal_title && (
                             <p className="text-[11px] text-slate-400 mb-1.5 flex items-center gap-1 truncate"><Target className="h-3 w-3 shrink-0" /> {i.goal_title}</p>
                           )}
+                          {i.output_product && (
+                            <p className="text-[11px] text-violet-500 mb-1.5 truncate">Đầu ra: {i.output_product}</p>
+                          )}
                           <ProgressBar pct={i.progress_pct} />
                           <div className="flex items-center justify-between mt-1.5">
-                            <Badge className={`${pr.color} border-0 text-[10px]`}>{pr.label}</Badge>
+                            <div className="flex items-center gap-1">
+                              <Badge className={`${pr.color} border-0 text-[10px]`}>{pr.label}</Badge>
+                              <Badge className="bg-indigo-50 text-indigo-700 border-0 text-[10px]">{LEVEL_LABEL[i.level] ?? 'Cấp 1'}</Badge>
+                            </div>
                             {i.owner_name && <span className="text-[11px] text-slate-400 truncate">{i.owner_name}</span>}
                           </div>
                         </Link>
@@ -213,6 +233,30 @@ function InitiativesPageInner() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <Label>Cấp sáng kiến</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value, parent_initiative_id: '' }))}
+                >
+                  <option value="1">Cấp 1</option>
+                  <option value="2">Cấp 2</option>
+                  <option value="3">Cấp 3</option>
+                </select>
+              </div>
+              <div>
+                <Label>Sáng kiến cha</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={form.parent_initiative_id} onChange={e => setForm(f => ({ ...f, parent_initiative_id: e.target.value }))}
+                  disabled={form.level === '1'}
+                >
+                  <option value="">— Không có —</option>
+                  {initiatives.filter(i => i.level === Number(form.level) - 1).map(i => <option key={i.id} value={i.id}>{i.title}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
                 <Label>Mục tiêu liên kết</Label>
                 <select
                   className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
@@ -233,6 +277,16 @@ function InitiativesPageInner() {
                 </select>
               </div>
             </div>
+            {form.level === '3' && (
+              <div>
+                <Label>Sản phẩm đầu ra</Label>
+                <Input
+                  className="mt-1.5" maxLength={255} value={form.output_product}
+                  onChange={e => setForm(f => ({ ...f, output_product: e.target.value }))}
+                  placeholder="Deliverable/output của sáng kiến cấp 3 này (tối đa 255 ký tự)"
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Mức ưu tiên</Label>

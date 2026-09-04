@@ -16,10 +16,14 @@ type Checkin = { id: number; note: string; progress_pct: number | null; user_nam
 type InitiativeDetail = {
   id: number; title: string; description: string; status: string; priority: string;
   owner_id: number | null; owner_name: string | null; goal_id: number | null; goal_title: string | null;
+  parent_initiative_id: number | null; parent_initiative_title: string | null; level: 1 | 2 | 3;
+  output_product: string | null;
   progress_pct: number; start_date: string | null; end_date: string | null; checkins: Checkin[];
 };
 type Goal = { id: number; title: string };
 type UserOpt = { id: number; username: string; display_name: string };
+type InitiativeOpt = { id: number; title: string; level: 1 | 2 | 3 };
+const LEVEL_LABEL: Record<number, string> = { 1: 'Cấp 1', 2: 'Cấp 2', 3: 'Cấp 3' };
 
 const INI_STATUS: Record<string, { label: string; color: string }> = {
   proposed:    { label: 'Đề xuất',      color: 'bg-slate-100 text-slate-600' },
@@ -49,12 +53,14 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
   const [initiative, setInitiative] = useState<InitiativeDetail | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [users, setUsers] = useState<UserOpt[]>([]);
+  const [allInitiatives, setAllInitiatives] = useState<InitiativeOpt[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     title: '', description: '', goal_id: '', owner_id: '', status: 'proposed', priority: 'medium',
     start_date: '', end_date: '', progress_pct: 0,
+    level: '1', parent_initiative_id: '', output_product: '',
   });
 
   const [checkinNote, setCheckinNote] = useState('');
@@ -68,6 +74,7 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
     load();
     fetch('/api/goals').then(r => r.ok ? r.json() : []).then(setGoals);
     fetch('/api/users').then(r => r.ok ? r.json() : []).then(setUsers);
+    fetch('/api/initiatives').then(r => r.ok ? r.json() : []).then(setAllInitiatives);
   }, [load]);
 
   const openEdit = () => {
@@ -77,6 +84,8 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
       goal_id: initiative.goal_id ? String(initiative.goal_id) : '', owner_id: initiative.owner_id ? String(initiative.owner_id) : '',
       status: initiative.status, priority: initiative.priority,
       start_date: initiative.start_date ?? '', end_date: initiative.end_date ?? '', progress_pct: initiative.progress_pct,
+      level: String(initiative.level ?? 1), parent_initiative_id: initiative.parent_initiative_id ? String(initiative.parent_initiative_id) : '',
+      output_product: initiative.output_product ?? '',
     });
     setEditOpen(true);
   };
@@ -88,6 +97,9 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
         ...editForm,
         goal_id: editForm.goal_id ? Number(editForm.goal_id) : null,
         owner_id: editForm.owner_id ? Number(editForm.owner_id) : null,
+        level: Number(editForm.level),
+        parent_initiative_id: editForm.parent_initiative_id ? Number(editForm.parent_initiative_id) : null,
+        output_product: editForm.level === '3' ? (editForm.output_product.trim() || null) : null,
       }),
     });
     if (!res.ok) { toast.error('Lỗi khi cập nhật sáng kiến'); return; }
@@ -151,6 +163,7 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
               <h1 className="text-lg font-bold text-slate-800">{initiative.title}</h1>
               <Badge className={`${st.color} border-0`}>{st.label}</Badge>
               <Badge className={`${pr.color} border-0`}>Ưu tiên {pr.label.toLowerCase()}</Badge>
+              <Badge className="bg-indigo-50 text-indigo-700 border-0">{LEVEL_LABEL[initiative.level] ?? 'Cấp 1'}</Badge>
             </div>
             <div className="flex gap-2 shrink-0">
               <Button variant="outline" size="sm" onClick={openEdit} className="gap-1.5"><Pencil className="h-3.5 w-3.5" /> Sửa</Button>
@@ -164,9 +177,17 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
                 <Target className="h-3 w-3" /> {initiative.goal_title}
               </Link>
             )}
+            {initiative.parent_initiative_title && (
+              <Link href={`/initiatives/${initiative.parent_initiative_id}`} className="flex items-center gap-1 text-violet-600 hover:underline">
+                Thuộc: {initiative.parent_initiative_title}
+              </Link>
+            )}
             {initiative.owner_name && <span>· Phụ trách: {initiative.owner_name}</span>}
             {initiative.start_date && <span>· {initiative.start_date} → {initiative.end_date || '—'}</span>}
           </div>
+          {initiative.output_product && (
+            <p className="text-xs text-slate-500 mb-3"><span className="font-medium text-slate-600">Sản phẩm đầu ra:</span> {initiative.output_product}</p>
+          )}
           <div className="max-w-md">
             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
               <span>Tiến độ</span>
@@ -229,6 +250,30 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <Label>Cấp sáng kiến</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={editForm.level} onChange={e => setEditForm(f => ({ ...f, level: e.target.value, parent_initiative_id: '' }))}
+                >
+                  <option value="1">Cấp 1</option>
+                  <option value="2">Cấp 2</option>
+                  <option value="3">Cấp 3</option>
+                </select>
+              </div>
+              <div>
+                <Label>Sáng kiến cha</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={editForm.parent_initiative_id} onChange={e => setEditForm(f => ({ ...f, parent_initiative_id: e.target.value }))}
+                  disabled={editForm.level === '1'}
+                >
+                  <option value="">— Không có —</option>
+                  {allInitiatives.filter(i => i.level === Number(editForm.level) - 1 && i.id !== initiative.id).map(i => <option key={i.id} value={i.id}>{i.title}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
                 <Label>Mục tiêu liên kết</Label>
                 <select
                   className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
@@ -249,6 +294,16 @@ export default function InitiativeDetailPage({ params }: { params: Promise<{ id:
                 </select>
               </div>
             </div>
+            {editForm.level === '3' && (
+              <div>
+                <Label>Sản phẩm đầu ra</Label>
+                <Input
+                  className="mt-1.5" maxLength={255} value={editForm.output_product}
+                  onChange={e => setEditForm(f => ({ ...f, output_product: e.target.value }))}
+                  placeholder="Deliverable/output của sáng kiến cấp 3 này (tối đa 255 ký tự)"
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Mức ưu tiên</Label>

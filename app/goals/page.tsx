@@ -15,9 +15,12 @@ import { Target, Plus, Search, Trash2, Layers } from 'lucide-react';
 type Goal = {
   id: number; title: string; description: string; period_label: string; status: string;
   owner_id: number | null; owner_name: string | null; squad_id: number | null; squad_name: string | null;
+  parent_goal_id: number | null; parent_goal_title: string | null; level: 1 | 2 | 3;
   start_date: string | null; end_date: string | null;
   kr_progress: number; kr_count: number; initiative_count: number;
 };
+
+const LEVEL_LABEL: Record<number, string> = { 1: 'Cấp 1', 2: 'Cấp 2', 3: 'Cấp 3' };
 type UserOpt = { id: number; username: string; display_name: string };
 type Squad = { id: number; name: string };
 
@@ -31,6 +34,7 @@ const GOAL_STATUS: Record<string, { label: string; color: string }> = {
 
 const EMPTY_FORM = {
   title: '', description: '', period_label: '', owner_id: '', squad_id: '', start_date: '', end_date: '',
+  level: '1', parent_goal_id: '',
   key_results: [{ title: '', unit: '', start_value: 0, target_value: 100 }] as { title: string; unit: string; start_value: number; target_value: number }[],
 };
 
@@ -98,6 +102,8 @@ function GoalsPageInner() {
         ...form,
         owner_id: form.owner_id ? Number(form.owner_id) : null,
         squad_id: form.squad_id ? Number(form.squad_id) : null,
+        level: Number(form.level),
+        parent_goal_id: form.parent_goal_id ? Number(form.parent_goal_id) : null,
         key_results: form.key_results.filter(kr => kr.title.trim()),
       }),
     });
@@ -177,9 +183,11 @@ function GoalsPageInner() {
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <h3 className="font-semibold text-slate-800 hover:text-blue-600 transition-colors">{g.title}</h3>
                       <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+                      <Badge className="bg-indigo-50 text-indigo-700 border-0">{LEVEL_LABEL[g.level] ?? 'Cấp 1'}</Badge>
                       {g.squad_name && <Badge className="bg-emerald-50 text-emerald-700 border-0 gap-1"><Layers className="h-3 w-3" />{g.squad_name}</Badge>}
                       {g.period_label && <span className="text-xs text-slate-400">{g.period_label}</span>}
                     </div>
+                    {g.parent_goal_title && <p className="text-xs text-slate-400 mb-1">Thuộc: {g.parent_goal_title}</p>}
                     {g.description && <p className="text-sm text-slate-500 mb-2 line-clamp-1">{g.description}</p>}
                     <div className="max-w-sm mb-1.5">
                       <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
@@ -240,6 +248,32 @@ function GoalsPageInner() {
                 >
                   <option value="">— Không thuộc nhóm —</option>
                   {squads.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Cấp mục tiêu</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={form.level}
+                  onChange={e => setForm(f => ({ ...f, level: e.target.value, parent_goal_id: '' }))}
+                >
+                  <option value="1">Cấp 1</option>
+                  <option value="2">Cấp 2</option>
+                  <option value="3">Cấp 3</option>
+                </select>
+              </div>
+              <div>
+                <Label>Mục tiêu cha</Label>
+                <select
+                  className="mt-1.5 w-full h-9 text-sm border rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={form.parent_goal_id}
+                  onChange={e => setForm(f => ({ ...f, parent_goal_id: e.target.value }))}
+                  disabled={form.level === '1'}
+                >
+                  <option value="">— Không có —</option>
+                  {goals.filter(g => g.level === Number(form.level) - 1).map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
                 </select>
               </div>
             </div>

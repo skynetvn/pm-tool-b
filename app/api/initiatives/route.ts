@@ -3,10 +3,11 @@ import { getDb } from '@/lib/db';
 import { getSessionFromRequest } from '@/lib/auth';
 
 const INITIATIVE_SELECT = `
-  SELECT i.*, u.display_name as owner_name, u.username as owner_username, g.title as goal_title
+  SELECT i.*, u.display_name as owner_name, u.username as owner_username, g.title as goal_title, pi.title as parent_initiative_title
   FROM initiatives i
   LEFT JOIN users u ON i.owner_id = u.id
   LEFT JOIN goals g ON i.goal_id = g.id
+  LEFT JOIN initiatives pi ON i.parent_initiative_id = pi.id
 `;
 
 export async function GET(req: NextRequest) {
@@ -40,11 +41,11 @@ export async function POST(req: NextRequest) {
   const companyId = user.is_admin ? (body.company_id ?? user.company_id ?? null) : user.company_id;
 
   const result = await db.run(
-    `INSERT INTO initiatives (company_id, goal_id, title, description, owner_id, status, priority, start_date, end_date, progress_pct, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    companyId, body.goal_id ?? null, body.title.trim(), body.description ?? '', body.owner_id ?? null,
+    `INSERT INTO initiatives (company_id, goal_id, parent_initiative_id, level, title, description, owner_id, status, priority, start_date, end_date, progress_pct, output_product, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    companyId, body.goal_id ?? null, body.parent_initiative_id ?? null, body.level ?? 1, body.title.trim(), body.description ?? '', body.owner_id ?? null,
     body.status ?? 'proposed', body.priority ?? 'medium', body.start_date ?? null, body.end_date ?? null,
-    body.progress_pct ?? 0, user.id
+    body.progress_pct ?? 0, body.output_product ?? null, user.id
   );
 
   const initiative = await db.get('SELECT * FROM initiatives WHERE id = ?', result.lastInsertRowid);

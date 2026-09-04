@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import crypto from 'crypto';
 import { STATUS_WEIGHTS } from './status-weights';
+import { TAI_CHINH_GOALS, TAI_CHINH_INITIATIVES } from './seed-tai-chinh-data';
 
 // ── Interface ──────────────────────────────────────────────────────────────────
 export interface DbClient {
@@ -424,6 +425,7 @@ async function initPostgresSchema(db: DbClient) {
       company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
       squad_id INTEGER REFERENCES squads(id) ON DELETE SET NULL,
       parent_goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+      level INTEGER NOT NULL DEFAULT 1,
       title TEXT NOT NULL,
       description TEXT DEFAULT '',
       owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -458,6 +460,8 @@ async function initPostgresSchema(db: DbClient) {
       id SERIAL PRIMARY KEY,
       company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
       goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+      parent_initiative_id INTEGER REFERENCES initiatives(id) ON DELETE SET NULL,
+      level INTEGER NOT NULL DEFAULT 1,
       title TEXT NOT NULL,
       description TEXT DEFAULT '',
       owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -466,6 +470,7 @@ async function initPostgresSchema(db: DbClient) {
       start_date TEXT,
       end_date TEXT,
       progress_pct INTEGER NOT NULL DEFAULT 0,
+      output_product VARCHAR(255),
       created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -569,6 +574,10 @@ async function migratePostgresSchema(pool: Pool) {
     `CREATE TABLE IF NOT EXISTS initiative_checkins (id SERIAL PRIMARY KEY, initiative_id INTEGER NOT NULL REFERENCES initiatives(id) ON DELETE CASCADE, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, note TEXT NOT NULL DEFAULT '', progress_pct INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `CREATE TABLE IF NOT EXISTS squads (id SERIAL PRIMARY KEY, company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT DEFAULT '', lead_id INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
     `ALTER TABLE goals ADD COLUMN IF NOT EXISTS squad_id INTEGER REFERENCES squads(id) ON DELETE SET NULL`,
+    `ALTER TABLE goals ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1`,
+    `ALTER TABLE initiatives ADD COLUMN IF NOT EXISTS parent_initiative_id INTEGER REFERENCES initiatives(id) ON DELETE SET NULL`,
+    `ALTER TABLE initiatives ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1`,
+    `ALTER TABLE initiatives ADD COLUMN IF NOT EXISTS output_product VARCHAR(255)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch { /* column already exists */ }
@@ -640,6 +649,46 @@ async function seedAuthData(db: DbClient) {
   }
 }
 
+// ── Seed sample data: Squad "Tài chính" (goals + initiatives, cấp 1-2-3) ────────
+async function seedTaiChinhSquad(db: DbClient) {
+  const existing = await db.get<{ id: number }>("SELECT id FROM squads WHERE name = 'Tài chính'");
+  if (existing) return;
+
+  const company = await db.get<{ id: number }>('SELECT id FROM companies ORDER BY id LIMIT 1');
+  const companyId = company?.id ?? null;
+
+  const squad = await db.run(
+    'INSERT INTO squads (company_id, name, description) VALUES (?, ?, ?)',
+    companyId, 'Tài chính',
+    'Squad Quản lý Tài chính Kế toán (QL TCKT) — dữ liệu mẫu nhập từ workbook QL_TCKT, thể hiện đầy đủ cấu trúc phân cấp Mục tiêu cấp 1-2-3 và Sáng kiến cấp 1-2-3.'
+  );
+  const squadId = Number(squad.lastInsertRowid);
+
+  const goalIdOf = new Map<string, number>();
+  for (const g of TAI_CHINH_GOALS) {
+    const parentId = g.parent ? goalIdOf.get(g.parent) ?? null : null;
+    const result = await db.run(
+      `INSERT INTO goals (company_id, squad_id, parent_goal_id, level, title, description, period_label, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      companyId, squadId, parentId, g.level, g.title, g.description, '2026-2028', 'not_started'
+    );
+    goalIdOf.set(g.tempId, Number(result.lastInsertRowid));
+  }
+
+  const initIdOf = new Map<string, number>();
+  for (const ini of TAI_CHINH_INITIATIVES) {
+    const parentId = ini.parent ? initIdOf.get(ini.parent) ?? null : null;
+    const goalId = ini.goalTempId ? goalIdOf.get(ini.goalTempId) ?? null : null;
+    const result = await db.run(
+      `INSERT INTO initiatives (company_id, goal_id, parent_initiative_id, level, title, description, status, priority, start_date, end_date, progress_pct, output_product)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      companyId, goalId, parentId, ini.level, ini.title, ini.description, 'proposed', 'medium',
+      ini.startDate, ini.endDate, 0, ini.outputProduct
+    );
+    initIdOf.set(ini.tempId, Number(result.lastInsertRowid));
+  }
+}
+
 // ── Singleton ──────────────────────────────────────────────────────────────────
 let _client: DbClient | null = null;
 
@@ -663,6 +712,7 @@ export async function getDb(): Promise<DbClient> {
   _client = client;
 
   await seedAuthData(_client);
+  await seedTaiChinhSquad(_client);
   return _client;
 }
 
@@ -673,6 +723,7 @@ export type Squad = {
 };
 export type Goal = {
   id: number; company_id: number | null; squad_id: number | null; parent_goal_id: number | null;
+  level: 1 | 2 | 3;
   title: string; description: string; owner_id: number | null;
   period_label: string; start_date: string | null; end_date: string | null;
   status: 'not_started' | 'on_track' | 'at_risk' | 'off_track' | 'completed';
@@ -688,11 +739,13 @@ export type GoalCheckin = {
   status: string; created_at: string;
 };
 export type Initiative = {
-  id: number; company_id: number | null; goal_id: number | null;
+  id: number; company_id: number | null; goal_id: number | null; parent_initiative_id: number | null;
+  level: 1 | 2 | 3;
   title: string; description: string; owner_id: number | null;
   status: 'proposed' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high';
   start_date: string | null; end_date: string | null; progress_pct: number;
+  output_product: string | null;
   created_by: number | null; created_at: string; updated_at: string;
 };
 export type InitiativeCheckin = {
