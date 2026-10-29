@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Import the "SHB IT Portfolio" markdown export into PM Tool as two programs:
 //   1. "Dự án CNTT Phối hợp (CPMO điều phối)"  ← first table (Danh sách dự án CPMO)
-//   2. "Workstream & AI"                        ← second table (Workstream & Dự án CNTT nội bộ)
+//   2. "Workstream & AI"                        ← second table (Workstream & Dự án CNTT nội bộ),
+//                                                  duplicate rows merged (see mergeWorkstreamRows)
 //
 // Usage:
 //   node scripts/import-it-portfolio.mjs <file.md>
@@ -61,6 +62,44 @@ if (!cpmo || !ws) {
 }
 
 const clean = v => (!v || v === '—' || v === '-' ? '' : v);
+
+// ── Merge duplicate Workstream rows ───────────────────────────────────────────
+// The Workstream table lists some items twice: once under their category
+// (GenAI/AI/Data, Chuyển đổi số, Taskforce) and again under "CNTT Chủ quản"
+// with a [CODE] suffix. A coded row is merged into the earlier row with the same
+// name (code stripped), or the one named in WS_ALIASES when the wording differs.
+const WS_ALIASES = {
+  GenAI: 'Ứng dụng GenAI – Chatbot nội bộ đa khối',
+  APIM: 'APIM – Nâng cấp HT Quản lý API',
+  HUB: 'SHB HUB – HT kết nối thông minh nội bộ',
+  CAR: 'CAR – Nâng cấp ATVM TT14/2025',
+};
+
+function mergeWorkstreamRows(rows) {
+  const items = [];
+  for (const r of rows) {
+    const code = r['Tên / Mã'].match(/\[([^\]]+)\]\s*$/)?.[1];
+    const base = r['Tên / Mã'].replace(/\s*\[[^\]]+\]\s*$/, '');
+    const item = {
+      code, name: base, types: [r['Loại']], owner: r['Chủ quản'], stage: r['Giai đoạn'],
+      pm: r['PM / Phụ trách'],
+      result: r['Kết quả công việc gần nhất'], plan: r['Kế hoạch công việc tiếp theo'],
+    };
+    const dup = code && items.find(i => !i.code && (i.name === base || i.name === WS_ALIASES[code]));
+    if (!dup) { items.push(item); continue; }
+
+    if (dup.stage !== item.stage || dup.pm !== item.pm) {
+      console.warn(`  ! "${dup.name}" và "${r['Tên / Mã']}" khác Giai đoạn/PM – giữ giá trị của dòng đầu`);
+    }
+    dup.code = code;
+    dup.types.push(item.types[0]);
+    // Both rows describe the same status; keep the more detailed wording.
+    if (clean(item.result).length > clean(dup.result).length) dup.result = item.result;
+    if (clean(item.plan).length > clean(dup.plan).length) dup.plan = item.plan;
+    console.log(`  ↳ Gộp "${r['Tên / Mã']}" vào "${dup.name}"`);
+  }
+  return items.map(i => ({ ...i, name: i.code ? `${i.name} [${i.code}]` : i.name, type: i.types.join(' · ') }));
+}
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 const loginRes = await fetch(`${BASE}/api/auth/login`, {
@@ -162,18 +201,12 @@ for (const r of cpmo.rows) {
 }
 console.log(`✓ ${PROGRAM_CPMO}: ${cpmo.rows.length} dự án`);
 
+const wsItems = mergeWorkstreamRows(ws.rows);
 const progWs = await api('/api/programs', 'POST', {
   name: PROGRAM_WS,
   industry: 'CNTT',
-  notes: `Workstream & Dự án CNTT nội bộ – ${ws.rows.length} hạng mục. Nguồn: SHB IT Portfolio T10/2026`,
+  notes: `Workstream & Dự án CNTT nội bộ – ${wsItems.length} hạng mục (gộp từ ${ws.rows.length} dòng). Nguồn: SHB IT Portfolio T10/2026`,
   company_id: companyId,
 });
-for (const r of ws.rows) {
-  const code = r['Tên / Mã'].match(/\[([^\]]+)\]\s*$/)?.[1];
-  await createProject(progWs.id, {
-    code, name: r['Tên / Mã'], type: r['Loại'], owner: r['Chủ quản'], stage: r['Giai đoạn'],
-    pm: r['PM / Phụ trách'],
-    result: r['Kết quả công việc gần nhất'], plan: r['Kế hoạch công việc tiếp theo'],
-  });
-}
-console.log(`✓ ${PROGRAM_WS}: ${ws.rows.length} hạng mục`);
+for (const item of wsItems) await createProject(progWs.id, item);
+console.log(`✓ ${PROGRAM_WS}: ${wsItems.length} hạng mục (gộp từ ${ws.rows.length} dòng)`);
