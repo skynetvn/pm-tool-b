@@ -201,7 +201,15 @@ for (const r of cpmo.rows) {
 }
 console.log(`✓ ${PROGRAM_CPMO}: ${cpmo.rows.length} dự án`);
 
-const wsItems = mergeWorkstreamRows(ws.rows);
+// Items already tracked in the CPMO program (e.g. "PLATFORM – Khung QTDL …" vs
+// CPMO "Khung QTDL …" with Mã DA PLATFORM) stay in CPMO only.
+const cpmoNames = new Set(cpmo.rows.map(r => r['Tên dự án']));
+const wsItems = mergeWorkstreamRows(ws.rows).filter(i => {
+  const base = i.name.replace(/\s*\[[^\]]+\]\s*$/, '');
+  const inCpmo = cpmoNames.has(base) || cpmoNames.has(base.replace(/^[^–]+–\s*/, ''));
+  if (inCpmo) console.log(`  ↳ Bỏ "${i.name}" khỏi ${PROGRAM_WS} (đã có trong ${PROGRAM_CPMO})`);
+  return !inCpmo;
+});
 const progWs = await api('/api/programs', 'POST', {
   name: PROGRAM_WS,
   industry: 'CNTT',
