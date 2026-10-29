@@ -207,6 +207,7 @@ export default function ProjectPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="Prepare Project">Prepare Project</SelectItem>
               <SelectItem value="Initiation">Initiation</SelectItem>
               <SelectItem value="Planning">Planning</SelectItem>
               <SelectItem value="Execution">Execution</SelectItem>
@@ -396,6 +397,7 @@ export default function ProjectPage() {
               >
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Prepare Project">Prepare Project</SelectItem>
                   <SelectItem value="Initiation">Initiation</SelectItem>
                   <SelectItem value="Planning">Planning</SelectItem>
                   <SelectItem value="Execution">Execution</SelectItem>

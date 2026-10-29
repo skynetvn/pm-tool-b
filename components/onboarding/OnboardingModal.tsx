@@ -347,6 +347,7 @@ function ProjectStep({
             value={form.current_phase}
             onChange={e => set('current_phase', e.target.value)}
           >
+            <option value="Prepare Project">Prepare Project</option>
             <option value="Initiation">Initiation</option>
             <option value="Planning">Planning</option>
             <option value="Execution">Execution</option>

@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   }));
   const noProgram = enrichedProjects.filter((p: any) => !p.customer_id);
 
-  const phases = ['Initiation', 'Planning', 'Execution', 'Closing'];
+  const phases = ['Prepare Project', 'Initiation', 'Planning', 'Execution', 'Closing'];
   const phaseDist = phases.map(phase => ({
     phase,
     count: projects.filter((p: any) => p.current_phase === phase).length,

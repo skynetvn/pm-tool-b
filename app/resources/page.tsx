@@ -63,6 +63,7 @@ function displayMonth(ym: string) {
 }
 
 const PHASE_COLOR: Record<string, string> = {
+  'Prepare Project': 'bg-cyan-100 text-cyan-700',
   Initiation: 'bg-purple-100 text-purple-700',
   Planning:   'bg-blue-100 text-blue-700',
   Execution:  'bg-amber-100 text-amber-700',

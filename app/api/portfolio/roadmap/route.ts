@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     phaseMap[ps.project_id].push(ps);
   }
 
-  const PHASE_ORDER = ['Initiation', 'Planning', 'Execution', 'Closing'];
+  const PHASE_ORDER = ['Prepare Project', 'Initiation', 'Planning', 'Execution', 'Closing'];
   const nowMs = Date.now();
 
   const enriched = projects.map((p: any) => {

@@ -2,9 +2,10 @@
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
 
-const PHASES = ['Initiation', 'Planning', 'Execution', 'Closing'];
+const PHASES = ['Prepare Project', 'Initiation', 'Planning', 'Execution', 'Closing'];
 
 const PHASE_DOCS: Record<string, string[]> = {
+  'Prepare Project': ['Business Case', 'Project Proposal (Tờ trình chủ trương)'],
   Initiation: ['Project Charter', 'Core Team List', 'Official Project Request'],
   Planning: ['Statement of Work (SoW)', 'Project Management Plan (PMP)', 'Stakeholder Register', 'RACI Matrix'],
   Execution: ['Kick-off Presentation', 'Weekly Status Reports', 'Change Request Forms'],

@@ -109,6 +109,7 @@ const RAG_DOT: Record<string, string> = { red: 'bg-red-500', amber: 'bg-amber-40
 const RAG_ROW: Record<string, string> = { red: 'bg-red-50/40', amber: 'bg-amber-50/30', green: '' };
 
 const PHASE_COLOR: Record<string, string> = {
+  'Prepare Project': 'bg-cyan-100 text-cyan-700 border-cyan-200',
   Initiation: 'bg-purple-100 text-purple-700 border-purple-200',
   Planning: 'bg-blue-100 text-blue-700 border-blue-200',
   Execution: 'bg-amber-100 text-amber-700 border-amber-200',

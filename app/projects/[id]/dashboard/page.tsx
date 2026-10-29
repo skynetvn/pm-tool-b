@@ -1062,7 +1062,7 @@ export default function DashboardPage() {
               <div><Label className="text-xs">Client</Label><Input className="mt-1 text-sm" value={editForm.client??''} onChange={e=>setEditForm(f=>({...f,client:e.target.value}))}/></div>
               <div><Label className="text-xs">Current Phase</Label>
                 <select className="mt-1 w-full text-sm border rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400" value={editForm.current_phase??''} onChange={e=>setEditForm(f=>({...f,current_phase:e.target.value}))}>
-                  {['Initiation','Planning','Execution','Closing'].map(p=><option key={p} value={p}>{p}</option>)}
+                  {['Prepare Project','Initiation','Planning','Execution','Closing'].map(p=><option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div><Label className="text-xs">Project Manager</Label><Input className="mt-1 text-sm" value={editForm.pm_name??''} onChange={e=>setEditForm(f=>({...f,pm_name:e.target.value}))}/></div>

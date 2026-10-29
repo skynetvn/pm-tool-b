@@ -62,6 +62,7 @@ type Me = { username: string; display_name: string; company_name: string | null;
 type ProjectItem = { id: number; name: string; current_phase: string };
 
 const PHASE_DOT: Record<string, string> = {
+  'Prepare Project': 'bg-cyan-400',
   Initiation: 'bg-purple-400',
   Planning:   'bg-blue-400',
   Execution:  'bg-amber-400',

@@ -64,12 +64,13 @@ type EpicDetailData = {
 type PhaseStyle = { labelBg: string; bg: string; border: string; fill: string; textColor: string };
 
 const PS: Record<string, PhaseStyle> = {
+  'Prepare Project': { labelBg: 'bg-cyan-100 text-cyan-700', bg: '#cffafe', border: '#0891b2', fill: '#22d3ee', textColor: '#155e75' },
   Initiation: { labelBg: 'bg-purple-100 text-purple-700', bg: '#f3e8ff', border: '#9333ea', fill: '#c084fc', textColor: '#6b21a8' },
   Planning:   { labelBg: 'bg-blue-100 text-blue-700',     bg: '#dbeafe', border: '#2563eb', fill: '#60a5fa', textColor: '#1e40af' },
   Execution:  { labelBg: 'bg-amber-100 text-amber-700',   bg: '#fef3c7', border: '#d97706', fill: '#fbbf24', textColor: '#92400e' },
   Closing:    { labelBg: 'bg-green-100 text-green-700',   bg: '#dcfce7', border: '#16a34a', fill: '#4ade80', textColor: '#14532d' },
 };
-const PHASES = ['Initiation', 'Planning', 'Execution', 'Closing'] as const;
+const PHASES = ['Prepare Project', 'Initiation', 'Planning', 'Execution', 'Closing'] as const;
 
 const RAG_COLOR: Record<string, string> = { red: '#ef4444', amber: '#f59e0b', green: '#22c55e' };
 

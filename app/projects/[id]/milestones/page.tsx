@@ -115,6 +115,7 @@ const NOT_STARTED_STATUSES = new Set(['New', 'To Do', 'To-do', 'REFINEMENT']);
 const EXEMPT_LAG_STATUSES  = new Set(['Blocked', 'Deferred']);
 
 const PROJECT_STATUS_COLOR: Record<string, string> = {
+  'Prepare Project': 'bg-cyan-50 border-cyan-200 text-cyan-700',
   'Initiation': 'bg-blue-50 border-blue-200 text-blue-700',
   'Planning':   'bg-violet-50 border-violet-200 text-violet-700',
   'Execution':  'bg-green-50 border-green-200 text-green-700',

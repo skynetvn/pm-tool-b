@@ -156,6 +156,7 @@ export default function NewProjectPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Prepare Project">Prepare Project</SelectItem>
                     <SelectItem value="Initiation">Initiation</SelectItem>
                     <SelectItem value="Planning">Planning</SelectItem>
                     <SelectItem value="Execution">Execution</SelectItem>

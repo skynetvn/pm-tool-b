@@ -42,6 +42,7 @@ type PortfolioData = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const PHASE_COLOR: Record<string, string> = {
+  'Prepare Project': 'bg-cyan-100 text-cyan-700 border-cyan-200',
   Initiation: 'bg-purple-100 text-purple-700 border-purple-200',
   Planning:   'bg-blue-100 text-blue-700 border-blue-200',
   Execution:  'bg-amber-100 text-amber-700 border-amber-200',
@@ -247,7 +248,7 @@ function ProjectCard({ p }: { p: ProjectRow }) {
 // ─── Program section ──────────────────────────────────────────────────────────
 function ProgramSection({ program, defaultOpen }: { program: ProgramGroup; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
-  const phases = ['Initiation','Planning','Execution','Closing'];
+  const phases = ['Prepare Project','Initiation','Planning','Execution','Closing'];
   const phaseCounts = Object.fromEntries(phases.map(ph => [ph, program.projects.filter(p => p.current_phase === ph).length]));
   const openRisks  = program.projects.reduce((s, p) => s + p.open_risks, 0);
   const openIssues = program.projects.reduce((s, p) => s + p.open_issues, 0);
@@ -343,6 +344,7 @@ export default function PortfolioDashboard() {
     const doneActivities  = ps.reduce((s, p) => s + Number(p.done_activities), 0);
     const inProgress = ps.filter(p => p.current_phase === 'Execution').length;
     const planning   = ps.filter(p => p.current_phase === 'Planning').length;
+    const prepare    = ps.filter(p => p.current_phase === 'Prepare Project').length;
     const initiation = ps.filter(p => p.current_phase === 'Initiation').length;
     const closing    = ps.filter(p => p.current_phase === 'Closing').length;
 
@@ -366,14 +368,14 @@ export default function PortfolioDashboard() {
 
     return {
       healthScore, red, amber, green, total,
-      totalActivities, doneActivities, inProgress, planning, initiation, closing,
+      totalActivities, doneActivities, inProgress, planning, prepare, initiation, closing,
       totalOpenRisks, totalOpenIssues, avgCompletion, overdueCount,
       byHealthScore, topRiskyProjects,
       totalPrograms: data?.kpi.totalPrograms ?? 0,
     };
   }, [filteredProjects, data]);
 
-  const filteredPhaseDist = useMemo(() => ['Initiation','Planning','Execution','Closing'].map(phase => ({
+  const filteredPhaseDist = useMemo(() => ['Prepare Project','Initiation','Planning','Execution','Closing'].map(phase => ({
     phase, count: filteredProjects.filter(p => p.current_phase === phase).length,
   })), [filteredProjects]);
 
@@ -597,6 +599,7 @@ export default function PortfolioDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-3 mb-4">
                 {[
+                  { label: 'Prepare Project', value: analytics.prepare, color: 'bg-cyan-50 border-cyan-200', text: 'text-cyan-700', bar: 'bg-cyan-500' },
                   { label: 'Initiation', value: analytics.initiation, color: 'bg-purple-50 border-purple-200', text: 'text-purple-700', bar: 'bg-purple-500' },
                   { label: 'Planning',   value: analytics.planning,   color: 'bg-blue-50 border-blue-200',     text: 'text-blue-700',   bar: 'bg-blue-500' },
                   { label: 'Execution',  value: analytics.inProgress, color: 'bg-amber-50 border-amber-200',   text: 'text-amber-700',  bar: 'bg-amber-500' },
@@ -620,6 +623,7 @@ export default function PortfolioDashboard() {
                   <Bar dataKey="count" radius={[4,4,0,0]}>
                     {filteredPhaseDist.map(d => (
                       <Cell key={d.phase} fill={
+                        d.phase === 'Prepare Project' ? '#06b6d4' :
                         d.phase === 'Initiation' ? '#a855f7' :
                         d.phase === 'Planning'   ? '#3b82f6' :
                         d.phase === 'Execution'  ? '#f59e0b' : '#22c55e'
