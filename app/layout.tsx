@@ -6,8 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Mục tiêu & Sáng kiến",
-  description: "Quản lý Mục tiêu, Sáng kiến và Người dùng",
+  title: "Quản lý Dự án",
+  description: "Quản lý Dự án, Program và Portfolio",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

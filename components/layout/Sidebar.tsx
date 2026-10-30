@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, Target, Rocket, Layers, BarChart3,
+  LayoutDashboard, Briefcase, Layers, BarChart3,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -32,10 +32,9 @@ function KoinoboriIcon({ className }: { className?: string }) {
 
 const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Tổng quan' },
-  { href: '/portfolio', icon: BarChart3, label: 'Tổng hợp toàn tổ chức' },
-  { href: '/squads', icon: Layers, label: 'Nhóm (Squad)' },
-  { href: '/goals', icon: Target, label: 'Mục tiêu' },
-  { href: '/initiatives', icon: Rocket, label: 'Sáng kiến' },
+  { href: '/projects', icon: Briefcase, label: 'Dự án' },
+  { href: '/programs', icon: Layers, label: 'Program' },
+  { href: '/portfolio', icon: BarChart3, label: 'Báo cáo Portfolio' },
 ];
 
 type Me = { username: string; display_name: string; company_name: string | null; is_admin: number };
@@ -63,9 +62,9 @@ function SidebarNav({
           <KoinoboriIcon className="h-6 w-6 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white leading-tight truncate">
-              {me?.company_name ?? 'Goal & Initiative'}
+              {me?.company_name ?? 'Quản lý Dự án'}
             </p>
-            <p className="text-xs text-slate-400 leading-tight">Quản lý Mục tiêu & Sáng kiến</p>
+            <p className="text-xs text-slate-400 leading-tight">Dự án · Program · Portfolio</p>
           </div>
           {onClose && (
             <button
@@ -208,7 +207,7 @@ export default function Sidebar() {
       {/* ── Mobile top bar (visible on < lg) ── */}
       <div className="lg:hidden h-14 bg-[#0f172a] text-slate-200 flex items-center px-4 gap-3 border-b border-slate-700/60 w-full shrink-0">
         <KoinoboriIcon className="h-6 w-6 shrink-0" />
-        <p className="text-sm font-bold text-white truncate flex-1">{me?.company_name ?? 'Goal & Initiative'}</p>
+        <p className="text-sm font-bold text-white truncate flex-1">{me?.company_name ?? 'Quản lý Dự án'}</p>
         <button
           onClick={() => setMobileOpen(true)}
           className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
