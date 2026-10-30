@@ -4,11 +4,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, Calendar, Users,
-  MessageSquare, AlertTriangle, FileText, TrendingDown,
-  PieChart, Building2, ClipboardList, FileBarChart2,
+  LayoutDashboard, Briefcase, Layers, BarChart3,
   LogOut, ShieldCheck, ChevronDown, KeyRound, Menu, X,
-  FolderOpen, Plus, Map, DollarSign, UserCog, Flag, Bug, BarChart2,
 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -34,52 +31,22 @@ function KoinoboriIcon({ className }: { className?: string }) {
 }
 
 const NAV = [
-  { href: '/', icon: LayoutDashboard, label: 'Portfolio' },
-  { href: '/portfolio/roadmap', icon: Map, label: 'Portfolio Roadmap' },
-  { href: '/portfolio/report', icon: FileBarChart2, label: 'Portfolio Report' },
-  { href: '/portfolio/budget', icon: DollarSign, label: 'Portfolio Budget' },
-  { href: '/resources', icon: UserCog, label: 'Resource Management' },
-  { href: '/operations', icon: ShieldCheck, label: 'Operations' },
-  { href: '/programs', icon: Building2, label: 'Programs' },
-];
-
-const PROJECT_NAV = [
-  { href: '/dashboard', icon: PieChart, label: 'Project Dashboard' },
-  { href: '/timeline', icon: Calendar, label: 'Project Timeline' },
-  { href: '/milestones', icon: Flag, label: 'Milestones' },
-  { href: '/resources', icon: Users, label: 'Resource Plan' },
-  { href: '/communication', icon: MessageSquare, label: 'Communication' },
-  { href: '/budget', icon: DollarSign, label: 'Budget & Cost' },
-  { href: '/risks', icon: AlertTriangle, label: 'Risks & Issues' },
-  { href: '/bugs', icon: Bug, label: 'Bug Tracking' },
-  { href: '/analysis', icon: TrendingDown, label: 'Delay Analysis' },
-  { href: '/reports', icon: ClipboardList, label: 'Weekly Report' },
-  { href: '/documents', icon: FileText, label: 'Documents' },
-  { href: '/report', icon: BarChart2, label: 'Project Report' },
+  { href: '/', icon: LayoutDashboard, label: 'Tổng quan' },
+  { href: '/projects', icon: Briefcase, label: 'Dự án' },
+  { href: '/programs', icon: Layers, label: 'Program' },
+  { href: '/portfolio', icon: BarChart3, label: 'Báo cáo Portfolio' },
 ];
 
 type Me = { username: string; display_name: string; company_name: string | null; is_admin: number };
-type ProjectItem = { id: number; name: string; current_phase: string };
-
-const PHASE_DOT: Record<string, string> = {
-  Initiation: 'bg-purple-400',
-  Planning:   'bg-blue-400',
-  Execution:  'bg-amber-400',
-  Closing:    'bg-green-400',
-};
 
 // ─── Shared nav content (used in both desktop sidebar and mobile drawer) ───────
 function SidebarNav({
-  me, pathname, projectId, projects, projectsOpen, onToggleProjects,
+  me, pathname,
   userMenuOpen, onToggleUserMenu, onChangePwd, onLogout,
   onNavClick, onClose,
 }: {
   me: Me | null;
   pathname: string;
-  projectId?: string;
-  projects: ProjectItem[];
-  projectsOpen: boolean;
-  onToggleProjects: () => void;
   userMenuOpen: boolean;
   onToggleUserMenu: () => void;
   onChangePwd: () => void;
@@ -95,9 +62,9 @@ function SidebarNav({
           <KoinoboriIcon className="h-6 w-6 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white leading-tight truncate">
-              {me?.company_name ?? 'PM Tool'}
+              {me?.company_name ?? 'Quản lý Dự án'}
             </p>
-            <p className="text-xs text-slate-400 leading-tight">Project Manager</p>
+            <p className="text-xs text-slate-400 leading-tight">Dự án · Program · Portfolio</p>
           </div>
           {onClose && (
             <button
@@ -163,68 +130,6 @@ function SidebarNav({
           </Link>
         ))}
 
-        {/* Projects collapsible */}
-        <button
-          onClick={onToggleProjects}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-        >
-          <FolderOpen className="h-4 w-4 shrink-0" />
-          <span className="flex-1 text-left">Projects</span>
-          {projects.length > 0 && (
-            <span className="text-[10px] bg-slate-700 text-slate-400 rounded px-1.5 py-0.5 font-medium">
-              {projects.length}
-            </span>
-          )}
-          <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', projectsOpen && 'rotate-180')} />
-        </button>
-
-        {projectsOpen && (
-          <div className="ml-3 flex flex-col gap-0.5 border-l border-slate-700/60 pl-3">
-            {projects.length === 0 && (
-              <p className="px-2 py-1.5 text-xs text-slate-500 italic">No projects yet</p>
-            )}
-            {projects.slice(0, 5).map(p => {
-              const isActive = projectId === String(p.id);
-              const dot = PHASE_DOT[p.current_phase] ?? 'bg-slate-500';
-              return (
-                <Link
-                  key={p.id}
-                  href={`/projects/${p.id}`}
-                  onClick={onNavClick}
-                  title={p.name}
-                  className={cn(
-                    'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors',
-                    isActive
-                      ? 'bg-blue-600/20 text-blue-300 font-medium'
-                      : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-                  )}
-                >
-                  <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
-                  <span className="truncate">{p.name}</span>
-                </Link>
-              );
-            })}
-            {projects.length > 5 && (
-              <Link
-                href="/projects"
-                onClick={onNavClick}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-blue-400 hover:bg-slate-700 hover:text-blue-300 transition-colors"
-              >
-                <FolderOpen className="h-3 w-3 shrink-0" />
-                See all projects ({projects.length})
-              </Link>
-            )}
-            <Link
-              href="/projects/new"
-              onClick={onNavClick}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-slate-500 hover:bg-slate-700 hover:text-white transition-colors mt-0.5"
-            >
-              <Plus className="h-3 w-3 shrink-0" />
-              New project
-            </Link>
-          </div>
-        )}
-
         {me?.is_admin ? (
           <Link
             href="/admin"
@@ -237,49 +142,19 @@ function SidebarNav({
             )}
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            Admin Panel
+            Quản lý người dùng
           </Link>
         ) : null}
       </nav>
-
-      {/* Project-specific nav */}
-      {projectId && (
-        <div className="mt-2 px-3 pb-4">
-          <p className="text-xs text-slate-500 uppercase tracking-widest px-3 mb-2">Project</p>
-          <div className="flex flex-col gap-1">
-            {PROJECT_NAV.map(({ href, icon: Icon, label }) => {
-              const full = `/projects/${projectId}${href}`;
-              return (
-                <Link
-                  key={href}
-                  href={full}
-                  onClick={onNavClick}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                    pathname === full
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </>
   );
 }
 
 // ─── Main Sidebar component ────────────────────────────────────────────────────
-export default function Sidebar({ projectId }: { projectId?: string }) {
+export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [projectsOpen, setProjectsOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
@@ -288,7 +163,6 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => { if (data) setMe(data); });
-    fetch('/api/projects').then(r => r.ok ? r.json() : []).then((data: ProjectItem[]) => setProjects(data ?? []));
   }, []);
 
   const handleLogout = async () => {
@@ -321,8 +195,7 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
   };
 
   const navProps = {
-    me, pathname, projectId, projects, projectsOpen,
-    onToggleProjects: () => setProjectsOpen(v => !v),
+    me, pathname,
     userMenuOpen,
     onToggleUserMenu: () => setUserMenuOpen(v => !v),
     onChangePwd: openChangePwd,
@@ -334,7 +207,7 @@ export default function Sidebar({ projectId }: { projectId?: string }) {
       {/* ── Mobile top bar (visible on < lg) ── */}
       <div className="lg:hidden h-14 bg-[#0f172a] text-slate-200 flex items-center px-4 gap-3 border-b border-slate-700/60 w-full shrink-0">
         <KoinoboriIcon className="h-6 w-6 shrink-0" />
-        <p className="text-sm font-bold text-white truncate flex-1">{me?.company_name ?? 'PM Tool'}</p>
+        <p className="text-sm font-bold text-white truncate flex-1">{me?.company_name ?? 'Quản lý Dự án'}</p>
         <button
           onClick={() => setMobileOpen(true)}
           className="p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
